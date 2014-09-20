@@ -1,8 +1,10 @@
 (ns tailspin.core
-  (:require [cljs.reader :as rdr]
+  (:require [cljs.core.async :as async]
+            [cljs.reader :as rdr]
             [clojure.walk :as walk]
             [om.core :as om :include-macros true]
-            [om.dom :as dom :include-macros true]))
+            [om.dom :as dom :include-macros true])
+  (:require-macros [cljs.core.async.macros :refer [go-loop]]))
 
 (enable-console-print!)
 
@@ -30,7 +32,7 @@
   (dom/div #js {:className (str "output " (if error "failure" "success"))}
     (str "==> " (or error (pr-str value)))))
 
-(defn code-cell [cell owner]
+(defn code-cell [cell owner opts]
   (reify
     om/IWillMount
     (will-mount [_]
@@ -47,12 +49,26 @@
           (dom/textarea
             #js {:className "input"
                  :onChange (partial handle-change cell)
+                 :onKeyDown #(when (and (= (.-keyCode %) 8) (= (.. % -target -value) ""))
+                               (async/put! (:event-bus opts) {:op :remove :name (:name @cell)}))
                  :value (:input cell)})
           (render-result (:output cell)))))))
 
 (defn sheet [app-state owner]
-  (reify om/IRender
-    (render [_]
+  (reify
+    om/IInitState
+    (init-state [_]
+      {:event-bus (async/chan)})
+    om/IWillMount
+    (will-mount [_]
+      (go-loop []
+        (let [ev (<! (om/get-state owner :event-bus))]
+          (case (:op ev)
+            :remove (om/transact! app-state :cells
+                      #(filterv (fn [cell] (not= (:name cell) (:name ev))) %)))
+          (recur))))
+    om/IRenderState
+    (render-state [_ {:keys [event-bus]}]
       (apply dom/div
         #js {:className "tailspin sheet"
              :onKeyDown (fn [ev]
@@ -61,7 +77,7 @@
                             (om/transact! app-state :cells #(conj % (make-cell)))))}
         (for [cell (:cells app-state)]
           (case (:type cell)
-            :code (om/build code-cell cell)))))))
+            :code (om/build code-cell cell {:opts {:event-bus event-bus}})))))))
 
 (om/root sheet app-state
   {:target (.getElementById js/document "app")})
