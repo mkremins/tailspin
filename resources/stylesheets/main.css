@@ -1,0 +1,66 @@
+/*@import url(http://fonts.googleapis.com/css?family=Source+Code+Pro);*/
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Georgia, serif;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+pre {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.sheet {
+  margin-left: 200px;
+  margin-top: 40px;
+  width: 640px;
+}
+
+.text p, .text h1, .text h2, .text h3 {
+  margin-bottom: 1rem;
+}
+
+.code, .text {
+  margin-bottom: 2rem;
+}
+
+.code {
+  margin-left: -120px;
+  width: 800px;
+}
+
+.label {
+  color: #777;
+  display: inline-block;
+  font-family: 'Lucida Grande', sans-serif;
+  font-size: 13px;
+  margin-right: 20px;
+  margin-top: 0.2em;
+  text-align: right;
+  vertical-align: top;
+  width: 100px;
+}
+
+.midcol {
+  display: inline-block;
+}
+
+.flense:not(:last-child) {
+  margin-bottom: 0.5rem;
+}
+
+.output {
+  border-top: 1px solid #ccc;
+  padding-top: 0.4rem;
+}
+
+.success { color: green; }
+.failure { color: red;   }
