@@ -6,6 +6,9 @@
 
 (enable-console-print!)
 
+(defn- make-cell []
+  {:type :code :name (name (gensym "cell")) :input "nil"})
+
 (def app-state
   (atom {:cells [{:type :code
                   :name "testing"
@@ -50,7 +53,12 @@
 (defn sheet [app-state owner]
   (reify om/IRender
     (render [_]
-      (apply dom/div #js {:className "tailspin sheet"}
+      (apply dom/div
+        #js {:className "tailspin sheet"
+             :onKeyDown (fn [ev]
+                          (when (and (= (.-keyCode ev) 13) (.-shiftKey ev))
+                            (.preventDefault ev)
+                            (om/transact! app-state :cells #(conj % (make-cell)))))}
         (for [cell (:cells app-state)]
           (case (:type cell)
             :code (om/build code-cell cell)))))))
