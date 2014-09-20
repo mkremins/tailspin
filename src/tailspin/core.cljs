@@ -34,7 +34,11 @@
   (reify om/IRender
     (render [_]
       (dom/div #js {:className "cell code"}
-        (dom/p #js {:className "name"} (:name cell))
+        (dom/input
+          #js {:className "name"
+               :onChange #(om/update! cell :name (.. % -target -value))
+               :type "text"
+               :value (:name cell)})
         (dom/div #js {:className "midcol"}
           (dom/textarea
             #js {:className "input"

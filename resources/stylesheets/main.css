@@ -12,7 +12,7 @@ body {
   line-height: 1.4;
 }
 
-textarea {
+textarea, input[type="text"] {
   border: none;
   outline: none;
   resize: none;
