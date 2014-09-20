@@ -25,6 +25,7 @@ textarea, input[type="text"] {
 }
 
 .code .input {
+  height: 1.4em;
   width: 640px;
 }
 
