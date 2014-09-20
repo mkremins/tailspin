@@ -1,6 +1,17 @@
 (defproject mkremins/tailspin "0.1.0-SNAPSHOT"
-  :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.clojure/clojurescript "0.0-2322"]
-                 [mkremins/dep-graph "0.1.0"]
-                 [mkremins/flense "0.0-SNAPSHOT"]
-                 [om "0.7.1"]])
+  :dependencies
+  [[org.clojure/clojure "1.6.0"]
+   [org.clojure/clojurescript "0.0-2322"]
+   [com.facebook/react "0.11.1"]
+   [mkremins/dep-graph "0.1.0"]
+   [om "0.7.1"]]
+
+  :plugins
+  [[lein-cljsbuild "1.0.3"]]
+
+  :cljsbuild
+  {:builds [{:source-paths ["src"]
+             :compiler {:preamble ["react/react.js"]
+                        :output-to "target/tailspin.js"
+                        :source-map "target/tailspin.js.map"
+                        :optimizations :whitespace}}]})
