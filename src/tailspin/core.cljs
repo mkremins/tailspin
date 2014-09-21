@@ -1,7 +1,6 @@
 (ns tailspin.core
   (:require [cljs.core.async :as async]
             [cljs.reader :as rdr]
-            [clojure.walk :as walk]
             [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true])
   (:require-macros [cljs.core.async.macros :refer [go-loop]]))
@@ -16,12 +15,22 @@
                   :name "testing"
                   :input "(str \"Hello, \" \"world!\")"}]}))
 
+(defn- eval* [form resolve]
+  (let [eval* #(eval* % resolve)]
+    (condp apply [form]
+      seq? (if (empty? form)
+             () (apply (eval* (first form)) (map eval* (rest form))))
+      vector? (mapv eval* form)
+      set? (set (map eval* form))
+      map? (into {} (map (fn [[k v]] [(eval* k) (eval* v)]) form))
+      symbol? (or (resolve form) (throw (js/Error. (str "Can't resolve symbol '" form "'"))))
+      form)))
+
 (defn- shitty-eval [code]
-  (let [smap {'+ + '- - '* * '/ / 'apply apply 'str str}]
-    (try (let [form (->> (rdr/read-string code) (walk/prewalk-replace smap))]
-           {:value (apply (first form) (rest form))})
-         (catch js/Error err
-           {:error (.-message err)}))))
+  (let [smap {'+ + '- - '* * '/ / '= = '> > '>= >= '< < '<= <=
+              'apply apply 'dec dec 'inc inc 'str str}]
+    (try {:value (eval* (rdr/read-string code) smap)}
+         (catch js/Error err {:error (.-message err)}))))
 
 (defn- handle-change [cell ev]
   (let [input (.. ev -target -value)]
