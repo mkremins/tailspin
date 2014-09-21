@@ -29,6 +29,10 @@ textarea, input[type="text"] {
   width: 640px;
 }
 
+.code .output {
+  max-width: 640px;
+}
+
 .sheet {
   margin-left: 200px;
   margin-top: 40px;
