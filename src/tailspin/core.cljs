@@ -73,8 +73,10 @@
       (go-loop []
         (let [ev (<! (om/get-state owner :event-bus))]
           (case (:op ev)
-            :remove (om/transact! app-state :cells
-                      #(filterv (fn [cell] (not= (:name cell) (:name ev))) %)))
+            :remove
+            (when (> (count (:cells @app-state)) 1)
+              (om/transact! app-state :cells
+                #(filterv (fn [cell] (not= (:name cell) (:name ev))) %))))
           (recur))))
     om/IRenderState
     (render-state [_ {:keys [event-bus]}]
