@@ -1,6 +1,8 @@
 (ns tailspin.core
   (:require [cljs.core.async :as async]
             [cljs.reader :as rdr]
+            [clojure.set :as set]
+            [dep-graph.core :as dep]
             [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true])
   (:require-macros [cljs.core.async.macros :refer [go-loop]]))
@@ -10,10 +12,17 @@
 (defn- make-cell []
   {:type :code :name (name (gensym "cell")) :input "nil"})
 
+(defn- keyed-by [keyfn coll]
+  (reduce (fn [m item] (assoc m (keyfn item) item)) {} coll))
+
 (def app-state
   (atom {:cells [{:type :code
                   :name "testing"
-                  :input "(str \"Hello, \" \"world!\")"}]}))
+                  :input "(str \"Hello, \" \"world!\")"}]
+         :deps (dep/graph)}))
+
+;; ---------------------------------------------------------------------
+;; Evaluation utilities
 
 (defn- eval* [form resolve]
   (let [eval* #(eval* % resolve)]
@@ -26,16 +35,63 @@
       symbol? (or (resolve form) (throw (js/Error. (str "Can't resolve symbol '" form "'"))))
       form)))
 
-(defn- shitty-eval [code]
-  (let [smap {'+ + '- - '* * '/ / '= = '> > '>= >= '< < '<= <=
-              'apply apply 'dec dec 'inc inc 'str str}]
-    (try {:value (eval* (rdr/read-string code) smap)}
-         (catch js/Error err {:error (.-message err)}))))
+(def ^:private builtins
+  {'+ + '- - '* * '/ / '= = '> > '>= >= '< < '<= <= 'apply apply 'dec dec 'inc inc 'str str})
 
-(defn- handle-change [cell ev]
-  (let [input (.. ev -target -value)]
-    (om/transact! cell []
-      #(merge % {:input input :output (shitty-eval input)}))))
+;; ---------------------------------------------------------------------
+;; Recalculate cell values after cell update
+
+(defn- calculate-dependencies [code]
+  (letfn [(deps* [form]
+            (cond (coll? form) (apply set/union (map deps* form))
+                  (symbol? form) #{(name form)}
+                  :else #{}))]
+    (try (set/difference (deps* (rdr/read-string code)) (set (map name (keys builtins))))
+         (catch js/Error _ #{}))))
+
+(defn- recalc
+  "Given an updated `cell` and a function `get-cell` that returns the cell data
+   for any given cell name, returns a modified copy of `cell` whose `:output`
+   reflects the changes made to `:input`."
+  [cell get-cell]
+  (letfn [(lookup [sym]
+            (if-let [dep (get-cell (name sym))]
+              (if (contains? (:output dep) :error)
+                (throw (js/Error. (str "Cell '" sym "' contains an error")))
+                (:value (:output dep)))
+              (or (builtins sym)
+                  (throw (js/Error. (str "Can't resolve symbol '" sym "'"))))))]
+    (assoc cell :output
+      (try {:value (eval* (rdr/read-string (:input cell)) lookup)}
+           (catch js/Error err {:error (.-message err)})))))
+
+(defn- update-cell
+  "Given a map of `sheet` data and a map containing keys `:name` (the name of a
+   cell to update) and `:input` (the new input string for the updated cell),
+   updates the entire sheet to reflect the changes made."
+  [sheet {:keys [name input]}]
+  (let [graph (:deps sheet)
+        get-cell (assoc-in (keyed-by :name (:cells sheet)) [name :input] input)
+        new-deps (calculate-dependencies input)
+        old-deps (dep/immediate-dependencies graph name)
+        +deps (set/difference new-deps old-deps)
+        -deps (set/difference old-deps new-deps)
+        updated (->> (cons name (dep/transitive-dependents graph name))
+                     (map get-cell)
+                     (sort-by :name (dep/topo-comparator graph))
+                     (reduce (fn [updated cell]
+                               (assoc updated (:name cell)
+                                      (recalc cell #(or (updated %) (get-cell %))))) {}))]
+    {:cells
+     (reduce (fn [cells cell]
+               (conj cells (or (updated (:name cell)) cell)))
+             [] (:cells sheet))
+     :deps
+     (reduce #(dep/remove-edge %1 name %2)
+             (reduce #(dep/depend %1 name %2) graph +deps) -deps)}))
+
+;; ---------------------------------------------------------------------
+;; Render cells to the DOM
 
 (defn- render-result [{:keys [error value]}]
   (dom/div #js {:className (str "output " (if error "failure" "success"))}
@@ -45,7 +101,7 @@
   (reify
     om/IWillMount
     (will-mount [_]
-      (om/update! cell :output (shitty-eval (:input cell))))
+      (om/transact! cell [] #(recalc % (constantly nil))))
     om/IRender
     (render [_]
       (dom/div #js {:className "cell code"}
@@ -57,7 +113,8 @@
         (dom/div #js {:className "midcol"}
           (dom/textarea
             #js {:className "input"
-                 :onChange (partial handle-change cell)
+                 :onChange #(async/put! (:event-bus opts)
+                              {:op :update :name (:name @cell) :input (.. % -target -value)})
                  :onKeyDown #(when (and (= (.-keyCode %) 8) (= (.. % -target -value) ""))
                                (async/put! (:event-bus opts) {:op :remove :name (:name @cell)}))
                  :value (:input cell)})
@@ -73,10 +130,10 @@
       (go-loop []
         (let [ev (<! (om/get-state owner :event-bus))]
           (case (:op ev)
-            :remove
-            (when (> (count (:cells @app-state)) 1)
-              (om/transact! app-state :cells
-                #(filterv (fn [cell] (not= (:name cell) (:name ev))) %))))
+            :update (om/transact! app-state [] #(update-cell % ev))
+            :remove (when (> (count (:cells @app-state)) 1)
+                      (om/transact! app-state :cells
+                        #(filterv (fn [cell] (not= (:name cell) (:name ev))) %))))
           (recur))))
     om/IRenderState
     (render-state [_ {:keys [event-bus]}]
