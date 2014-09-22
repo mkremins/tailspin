@@ -72,23 +72,34 @@
   [sheet {:keys [name input]}]
   (let [graph (:deps sheet)
         get-cell (assoc-in (keyed-by :name (:cells sheet)) [name :input] input)
+        ;; we'll use this info to calculate an updated dependency graph below
         new-deps (calculate-dependencies input)
         old-deps (dep/immediate-dependencies graph name)
         +deps (set/difference new-deps old-deps)
         -deps (set/difference old-deps new-deps)
-        updated (->> (cons name (dep/transitive-dependents graph name))
-                     (map get-cell)
+        ;; check for circular dependencies to ensure nothing breaks
+        downstream (dep/transitive-dependents graph name)
+        circ-dep (first (set/intersection downstream new-deps))
+        the-cell (if circ-dep
+                   (assoc (get-cell name) :output
+                          {:error (str "Circular dependency on cell '" circ-dep "'")})
+                   (recalc (get-cell name) get-cell))
+        ;; update downstream cells to reflect the changes we made upstream
+        updated (->> (map get-cell downstream)
                      (sort-by :name (dep/topo-comparator graph))
                      (reduce (fn [updated cell]
                                (assoc updated (:name cell)
-                                      (recalc cell #(or (updated %) (get-cell %))))) {}))]
+                                      (recalc cell #(or (updated %) (get-cell %)))))
+                             {name the-cell}))]
     {:cells
      (reduce (fn [cells cell]
                (conj cells (or (updated (:name cell)) cell)))
              [] (:cells sheet))
      :deps
-     (reduce #(dep/remove-edge %1 name %2)
-             (reduce #(dep/depend %1 name %2) graph +deps) -deps)}))
+     (if circ-dep
+       (dep/remove-node graph name)
+       (reduce #(dep/remove-edge %1 name %2)
+               (reduce #(dep/depend %1 name %2) graph +deps) -deps))}))
 
 ;; ---------------------------------------------------------------------
 ;; Render cells to the DOM
