@@ -98,7 +98,7 @@
         -deps (set/difference old-deps new-deps)
         ;; check for circular dependencies to ensure nothing breaks
         downstream (dep/transitive-dependents graph name)
-        circ-dep (first (set/intersection downstream new-deps))
+        circ-dep (first (set/intersection (conj downstream name) new-deps))
         the-cell (if circ-dep
                    (assoc (get-cell name) :output
                           {:error (str "Circular dependency on cell '" circ-dep "'")})
