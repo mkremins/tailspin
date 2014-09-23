@@ -78,9 +78,9 @@
                                (assoc updated (:name cell)
                                       (recalc cell #(or (updated %) (get-cell %))))) {}))]
     {:cells
-     (reduce (fn [cells cell]
-               (conj cells (or (updated (:name cell)) cell)))
-             [] (remove #(= (:name %) name) (:cells sheet)))
+     (->> (:cells sheet)
+          (remove #(= (:name %) name))
+          (mapv #(or (updated (:name %)) %)))
      :deps
      (dep/remove-all graph name)}))
 
@@ -111,9 +111,7 @@
                                       (recalc cell #(or (updated %) (get-cell %)))))
                              {name the-cell}))]
     {:cells
-     (reduce (fn [cells cell]
-               (conj cells (or (updated (:name cell)) cell)))
-             [] (:cells sheet))
+     (mapv #(or (updated (:name %)) %) (:cells sheet))
      :deps
      (if circ-dep
        (dep/remove-node graph name)
