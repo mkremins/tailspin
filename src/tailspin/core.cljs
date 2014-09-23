@@ -32,7 +32,7 @@
       vector? (mapv eval* form)
       set? (set (map eval* form))
       map? (into {} (map (fn [[k v]] [(eval* k) (eval* v)]) form))
-      symbol? (or (resolve form) (throw (js/Error. (str "Can't resolve symbol '" form "'"))))
+      symbol? (resolve form)
       form)))
 
 (def ^:private builtins
