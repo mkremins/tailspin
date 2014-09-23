@@ -65,6 +65,25 @@
       (try {:value (eval* (rdr/read-string (:input cell)) lookup)}
            (catch js/Error err {:error (.-message err)})))))
 
+(defn- remove-cell
+  "Given a map of `sheet` data and a map containing the key `:name` (the name
+   of a cell to remove), updates the entire sheet to reflect the changes made."
+  [sheet {:keys [name]}]
+  (let [graph (:deps sheet)
+        get-cell (dissoc (keyed-by :name (:cells sheet)) name)
+        downstream (dep/transitive-dependents graph name)
+        updated (->> (map get-cell downstream)
+                     (sort-by :name (dep/topo-comparator graph))
+                     (reduce (fn [updated cell]
+                               (assoc updated (:name cell)
+                                      (recalc cell #(or (updated %) (get-cell %))))) {}))]
+    {:cells
+     (reduce (fn [cells cell]
+               (conj cells (or (updated (:name cell)) cell)))
+             [] (remove #(= (:name %) name) (:cells sheet)))
+     :deps
+     (dep/remove-all graph name)}))
+
 (defn- update-cell
   "Given a map of `sheet` data and a map containing keys `:name` (the name of a
    cell to update) and `:input` (the new input string for the updated cell),
@@ -143,8 +162,7 @@
           (case (:op ev)
             :update (om/transact! app-state [] #(update-cell % ev))
             :remove (when (> (count (:cells @app-state)) 1)
-                      (om/transact! app-state :cells
-                        #(filterv (fn [cell] (not= (:name cell) (:name ev))) %))))
+                      (om/transact! app-state [] #(remove-cell % ev))))
           (recur))))
     om/IRenderState
     (render-state [_ {:keys [event-bus]}]
