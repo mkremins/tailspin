@@ -25,11 +25,27 @@
    'take-while take-while, 'update-in update-in, 'val val, 'vals vals, 'vector vector,
    'vector? vector?, 'vec vec, 'zipmap zipmap})
 
+(declare eval)
+
+(defmulti eval-special (fn [form _] (first form)))
+
+(defmethod eval-special 'if [[_ test then else] resolve]
+  (eval (if (eval test resolve) then else) resolve))
+
+(defmethod eval-special 'let* [[_ bvec body] resolve]
+  (loop [bpairs (partition 2 bvec)
+         resolve* resolve]
+    (if-let [[bsym bval] (first bpairs)]
+      (recur (rest bpairs)
+             #(if (= % bsym) (eval bval resolve*) (resolve* %)))
+      (eval body resolve*))))
+
 (defn eval [form resolve]
   (let [eval* #(eval % resolve)]
     (condp apply [form]
-      seq? (if (empty? form)
-             () (apply (eval* (first form)) (map eval* (rest form))))
+      seq? (if-let [eval-special* (get-method eval-special (first form))]
+             (eval-special* form resolve)
+             (if (empty? form) () (apply (eval* (first form)) (map eval* (rest form)))))
       vector? (mapv eval* form)
       set? (set (map eval* form))
       map? (into {} (map (fn [[k v]] [(eval* k) (eval* v)]) form))
