@@ -4,7 +4,8 @@
             [clojure.set :as set]
             [dep-graph.core :as dep]
             [om.core :as om :include-macros true]
-            [om.dom :as dom :include-macros true])
+            [om.dom :as dom :include-macros true]
+            [tailspin.language :as lang])
   (:require-macros [cljs.core.async.macros :refer [go-loop]]))
 
 (enable-console-print!)
@@ -22,23 +23,6 @@
          :deps (dep/graph)}))
 
 ;; ---------------------------------------------------------------------
-;; Evaluation utilities
-
-(defn- eval* [form resolve]
-  (let [eval* #(eval* % resolve)]
-    (condp apply [form]
-      seq? (if (empty? form)
-             () (apply (eval* (first form)) (map eval* (rest form))))
-      vector? (mapv eval* form)
-      set? (set (map eval* form))
-      map? (into {} (map (fn [[k v]] [(eval* k) (eval* v)]) form))
-      symbol? (resolve form)
-      form)))
-
-(def ^:private builtins
-  {'+ + '- - '* * '/ / '= = '> > '>= >= '< < '<= <= 'apply apply 'dec dec 'inc inc 'str str})
-
-;; ---------------------------------------------------------------------
 ;; Recalculate cell values after cell update
 
 (defn- calculate-dependencies [code]
@@ -46,7 +30,7 @@
             (cond (coll? form) (apply set/union (map deps* form))
                   (symbol? form) #{(name form)}
                   :else #{}))]
-    (try (set/difference (deps* (rdr/read-string code)) (set (map name (keys builtins))))
+    (try (set/difference (deps* (rdr/read-string code)) (set (map name (keys lang/builtins))))
          (catch js/Error _ #{}))))
 
 (defn- recalc
@@ -59,11 +43,14 @@
               (if (contains? (:output dep) :error)
                 (throw (js/Error. (str "Cell '" sym "' contains an error")))
                 (:value (:output dep)))
-              (or (builtins sym)
+              (or (lang/builtins sym)
                   (throw (js/Error. (str "Can't resolve symbol '" sym "'"))))))]
     (assoc cell :output
-      (try {:value (eval* (rdr/read-string (:input cell)) lookup)}
+      (try {:value (lang/eval (rdr/read-string (:input cell)) lookup)}
            (catch js/Error err {:error (.-message err)})))))
+
+;; ---------------------------------------------------------------------
+;; Transactionally update the entire sheet in response to user actions
 
 (defn- remove-cell
   "Given a map of `sheet` data and a map containing the key `:name` (the name
