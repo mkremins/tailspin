@@ -63,6 +63,8 @@
                          (inc recur-depth))))
               ret)))))))
 
+(defmethod eval-special 'quote [[_ arg] _] arg)
+
 (defmethod eval-special 'recur [[_ & args] resolve]
   (RecurThunk. (map #(eval % resolve) args)))
 
