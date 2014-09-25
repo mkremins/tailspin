@@ -60,6 +60,7 @@ textarea, input[type="text"] {
 
 .code .output {
   border-top: 1px solid #ccc;
+  margin-top: 0.25rem;
   max-width: 640px;
   padding-top: 0.4rem;
 }
