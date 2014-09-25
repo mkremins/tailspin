@@ -2,6 +2,8 @@
   "Implements a strictly limited subset of the Clojure language."
   (:refer-clojure :exclude [eval]))
 
+(def ^:dynamic *max-recur-depth* 256)
+
 (def builtins
   {'+ +, '- -, '* *, '/ /, '< <, '<= <=, '> >, '>= >=, '= =, '== ==, 'aget aget, 'apply apply,
    'aset aset, 'assoc assoc, 'assoc-in assoc-in, 'comp comp, 'complement complement,
@@ -39,6 +41,30 @@
       (recur (rest bpairs)
              #(if (= % bsym) (eval bval resolve*) (resolve* %)))
       (eval body resolve*))))
+
+(deftype RecurThunk [args])
+
+(defmethod eval-special 'loop* [[_ bvec body] resolve]
+  (let [bpairs (partition 2 bvec)
+        bsyms (map first bpairs)]
+    (loop [bpairs bpairs
+           resolve* resolve]
+      (if-let [[bsym bval] (first bpairs)]
+        (recur (rest bpairs)
+               #(if (= % bsym) (eval bval resolve*) (resolve* %)))
+        (loop [resolve* resolve*
+               recur-depth 0]
+          (let [ret (eval body resolve*)]
+            (if (instance? RecurThunk ret)
+              (if (> recur-depth *max-recur-depth*)
+                (throw (js/Error. (str "Maximum recur depth (" *max-recur-depth* ") exceeded")))
+                (let [loop-bindings (zipmap bsyms (.-args ret))]
+                  (recur #(if (contains? loop-bindings %) (loop-bindings %) (resolve %))
+                         (inc recur-depth))))
+              ret)))))))
+
+(defmethod eval-special 'recur [[_ & args] resolve]
+  (RecurThunk. (map #(eval % resolve) args)))
 
 (defn eval [form resolve]
   (let [eval* #(eval % resolve)]
