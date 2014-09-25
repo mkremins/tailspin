@@ -154,11 +154,13 @@
           (if editing?
             (dom/textarea
               #js {:className "input"
+                   :cols 66
                    :onBlur #(om/set-state! owner :editing? false)
                    :onChange #(om/update! cell :text (.. % -target -value))
                    :onKeyDown #(when (and (= (.-keyCode %) 8) (= (.. % -target -value) ""))
                                  (async/put! (:event-bus opts) {:op :remove :name (:name @cell)}))
                    :ref "input"
+                   :rows (str (inc (int (/ (count (:text cell)) 66))))
                    :value (:text cell)})
             (dom/p
               #js {:className "content"
