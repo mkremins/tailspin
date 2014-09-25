@@ -158,11 +158,17 @@
                    :onChange #(om/update! cell :text (.. % -target -value))
                    :onKeyDown #(when (and (= (.-keyCode %) 8) (= (.. % -target -value) ""))
                                  (async/put! (:event-bus opts) {:op :remove :name (:name @cell)}))
+                   :ref "input"
                    :value (:text cell)})
             (dom/p
               #js {:className "content"
                    :onClick #(om/set-state! owner :editing? true)}
-              (:text cell))))))))
+              (:text cell))))))
+    om/IDidUpdate
+    (did-update [_ _ {was-editing? :editing?}]
+      (let [editing? (om/get-state owner :editing?)]
+        (when (and editing? (not was-editing?))
+          (.focus (om/get-node owner "input")))))))
 
 (defn sheet [app-state owner]
   (reify
