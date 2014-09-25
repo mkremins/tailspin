@@ -1,4 +1,4 @@
-/*@import url(http://fonts.googleapis.com/css?family=Source+Code+Pro);*/
+/* Reset default styles to something more reasonable */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -12,20 +12,7 @@ textarea, input[type="text"] {
   resize: none;
 }
 
-.code .input, .code .output {
-  font-family: 'Source Code Pro', monospace;
-  font-size: 16px;
-  line-height: 1.4;
-}
-
-.code .input {
-  height: 1.4em;
-  width: 640px;
-}
-
-.code .output {
-  max-width: 640px;
-}
+/* Entire sheets */
 
 .sheet {
   margin-left: 200px;
@@ -33,26 +20,8 @@ textarea, input[type="text"] {
   width: 640px;
 }
 
-.text .content {
-  font-family: Georgia, serif;
-  font-size: 16px;
-  line-height: 1.4;
-}
-
-.text .input {
-  font-family: monospace;
-  font-size: 16px;
-  line-height: 1.4;
-  width: 640px;
-}
-
-.code, .text {
+.cell {
   margin-bottom: 2rem;
-}
-
-.code {
-  margin-left: -120px;
-  width: 800px;
 }
 
 .cell .name {
@@ -71,14 +40,44 @@ textarea, input[type="text"] {
   display: inline-block;
 }
 
-.flense:not(:last-child) {
-  margin-bottom: 0.5rem;
+/* Code cells */
+
+.code {
+  margin-left: -120px;
+  width: 800px;
 }
 
-.output {
+.code .input, .code .output {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.code .input {
+  height: 1.4em;
+  width: 640px;
+}
+
+.code .output {
   border-top: 1px solid #ccc;
+  max-width: 640px;
   padding-top: 0.4rem;
 }
 
 .success { color: green; }
 .failure { color: red;   }
+
+/* Text cells */
+
+.text .content {
+  font-family: Georgia, serif;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.text .input {
+  font-family: monospace;
+  font-size: 16px;
+  line-height: 1.4;
+  width: 640px;
+}
