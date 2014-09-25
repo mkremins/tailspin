@@ -10,14 +10,24 @@
 
 (enable-console-print!)
 
-(defn- make-cell []
+(defn- make-code-cell []
   {:type :code :name (name (gensym "cell")) :input "nil"})
+
+(defn- make-text-cell []
+  {:type :text :name (name (gensym "cell")) :text "Type here..."})
 
 (defn- keyed-by [keyfn coll]
   (reduce (fn [m item] (assoc m (keyfn item) item)) {} coll))
 
 (def app-state
-  (atom {:cells [{:type :code
+  (atom {:cells [{:type :text
+                  :name "intro"
+                  :text (apply str
+                          ["Welcome to Tailspin, an interactive notebook-style REPL. "
+                           "Feel free to edit this text, or the code below. "
+                           "You can also press SHIFT+ENTER to insert a new text cell "
+                           "or CMD+ENTER to insert a new code cell."])}
+                 {:type :code
                   :name "testing"
                   :input "(str \"Hello, \" \"world!\")"}]
          :deps (dep/graph)}))
@@ -135,6 +145,25 @@
                  :value (:input cell)})
           (render-result (:output cell)))))))
 
+(defn text-cell [cell owner opts]
+  (reify
+    om/IRenderState
+    (render-state [_ {:keys [editing?]}]
+      (dom/div #js {:className "cell text"}
+        (dom/div #js {:className "midcol"}
+          (if editing?
+            (dom/textarea
+              #js {:className "input"
+                   :onBlur #(om/set-state! owner :editing? false)
+                   :onChange #(om/update! cell :text (.. % -target -value))
+                   :onKeyDown #(when (and (= (.-keyCode %) 8) (= (.. % -target -value) ""))
+                                 (async/put! (:event-bus opts) {:op :remove :name (:name @cell)}))
+                   :value (:text cell)})
+            (dom/p
+              #js {:className "content"
+                   :onClick #(om/set-state! owner :editing? true)}
+              (:text cell))))))))
+
 (defn sheet [app-state owner]
   (reify
     om/IInitState
@@ -154,12 +183,16 @@
       (apply dom/div
         #js {:className "tailspin sheet"
              :onKeyDown (fn [ev]
-                          (when (and (= (.-keyCode ev) 13) (.-shiftKey ev))
-                            (.preventDefault ev)
-                            (om/transact! app-state :cells #(conj % (make-cell)))))}
+                          (cond (and (= (.-keyCode ev) 13) (.-shiftKey ev))
+                                (do (.preventDefault ev)
+                                    (om/transact! app-state :cells #(conj % (make-text-cell))))
+                                (and (= (.-keyCode ev) 13) (.-metaKey ev))
+                                (do (.preventDefault ev)
+                                    (om/transact! app-state :cells #(conj % (make-code-cell))))))}
         (for [cell (:cells app-state)]
           (case (:type cell)
-            :code (om/build code-cell cell {:opts {:event-bus event-bus}})))))))
+            :code (om/build code-cell cell {:opts {:event-bus event-bus}})
+            :text (om/build text-cell cell {:opts {:event-bus event-bus}})))))))
 
 (om/root sheet app-state
   {:target (.getElementById js/document "app")})
