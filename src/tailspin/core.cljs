@@ -3,6 +3,7 @@
             [cljs.reader :as rdr]
             [clojure.set :as set]
             [dep-graph.core :as dep]
+            [markdown.core :refer [md->html]]
             [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
             [tailspin.language :as lang])
@@ -162,10 +163,10 @@
                    :ref "input"
                    :rows (str (inc (int (/ (count (:text cell)) 66))))
                    :value (:text cell)})
-            (dom/p
+            (dom/div
               #js {:className "content"
-                   :onClick #(om/set-state! owner :editing? true)}
-              (:text cell))))))
+                   :dangerouslySetInnerHTML #js {:__html (md->html (:text cell))}
+                   :onClick #(om/set-state! owner :editing? true)})))))
     om/IDidUpdate
     (did-update [_ _ {was-editing? :editing?}]
       (let [editing? (om/get-state owner :editing?)]

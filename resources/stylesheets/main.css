@@ -76,6 +76,16 @@ textarea, input[type="text"] {
   line-height: 1.4;
 }
 
+.text .content > * {
+  margin-bottom: 1rem;
+}
+
+.text .content ol,
+.text .content ul {
+  margin-left: 2rem;
+  margin-right: 1rem;
+}
+
 .text .input {
   font-family: monospace;
   font-size: 16px;
