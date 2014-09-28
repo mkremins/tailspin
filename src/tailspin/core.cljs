@@ -55,7 +55,7 @@
               (if (contains? (:output dep) :error)
                 (throw (js/Error. (str "Cell '" sym "' contains an error")))
                 (let [value (:value (:output dep))]
-                  (if (and (map? value) (::ui/type value)) (:value value) value)))
+                  (if (ui/spec? value) (:value value) value)))
               (or (lang/builtins sym)
                   (throw (js/Error. (str "Can't resolve symbol '" sym "'"))))))]
     (assoc cell :output
@@ -161,7 +161,7 @@
                  :value (:input cell)})
           (let [{:keys [error value]} (:output cell)]
             (dom/div #js {:className (str "output " (if error "failure" "success"))}
-              (if (and (map? value) (::ui/type value))
+              (if (ui/spec? value)
                 (ui/build value #(async/put! (:event-bus opts)
                                    {:op :refresh :name (:name @cell) :value %}))
                 (str "==> " (or error (pr-str value)))))))))))

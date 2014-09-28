@@ -2,6 +2,9 @@
   (:require [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]))
 
+(defn spec? [value]
+  (and (map? value) (::type value)))
+
 (defn slider
   [& {:keys [min max step init]
       :or {min 0 max 1 step 0.01 init 0.5}}]
