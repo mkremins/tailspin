@@ -162,10 +162,8 @@
           (let [{:keys [error value]} (:output cell)]
             (dom/div #js {:className (str "output " (if error "failure" "success"))}
               (if (and (map? value) (::ui/type value))
-                (let [refresh-cb #(async/put! (:event-bus opts)
-                                    {:op :refresh :name (:name @cell) :value %})]
-                  (case (::ui/type value)
-                    :slider (om/build ui/slider-view value {:opts {:refresh-cb refresh-cb}})))
+                (ui/build value #(async/put! (:event-bus opts)
+                                   {:op :refresh :name (:name @cell) :value %}))
                 (str "==> " (or error (pr-str value)))))))))))
 
 (defn text-cell [cell owner opts]
