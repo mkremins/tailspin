@@ -6,7 +6,8 @@
             [markdown.core :refer [md->html]]
             [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
-            [tailspin.language :as lang])
+            [tailspin.language :as lang]
+            [tailspin.ui :as ui])
   (:require-macros [cljs.core.async.macros :refer [go-loop]]))
 
 (enable-console-print!)
@@ -53,7 +54,8 @@
             (if-let [dep (get-cell (name sym))]
               (if (contains? (:output dep) :error)
                 (throw (js/Error. (str "Cell '" sym "' contains an error")))
-                (:value (:output dep)))
+                (let [value (:value (:output dep))]
+                  (if (and (map? value) (::ui/type value)) (:value value) value)))
               (or (lang/builtins sym)
                   (throw (js/Error. (str "Can't resolve symbol '" sym "'"))))))]
     (assoc cell :output
@@ -62,6 +64,23 @@
 
 ;; ---------------------------------------------------------------------
 ;; Transactionally update the entire sheet in response to user actions
+
+(defn- refresh-cell
+  "Given a map of `sheet` data and a map containing the key `:name` (the name
+   of a cell to refresh) and `:value` (the new value of the refreshed cell),
+   updates the entire sheet to reflect the changes made."
+  [sheet {:keys [name value]}]
+  (let [graph (:deps sheet)
+        get-cell (assoc-in (keyed-by :name (:cells sheet)) [name :output :value :value] value)
+        the-cell (get-cell name)
+        downstream (dep/transitive-dependents graph name)
+        updated (->> (map get-cell downstream)
+                     (sort-by :name (dep/topo-comparator graph))
+                     (reduce (fn [updated cell]
+                               (assoc updated (:name cell)
+                                      (recalc cell #(or (updated %) (get-cell %)))))
+                             {name the-cell}))]
+    (assoc sheet :cells (mapv #(or (updated (:name %)) %) (:cells sheet)))))
 
 (defn- remove-cell
   "Given a map of `sheet` data and a map containing the key `:name` (the name
@@ -119,10 +138,6 @@
 ;; ---------------------------------------------------------------------
 ;; Render cells to the DOM
 
-(defn- render-result [{:keys [error value]}]
-  (dom/div #js {:className (str "output " (if error "failure" "success"))}
-    (str "==> " (or error (pr-str value)))))
-
 (defn code-cell [cell owner opts]
   (reify
     om/IWillMount
@@ -144,7 +159,14 @@
                  :onKeyDown #(when (and (= (.-keyCode %) 8) (= (.. % -target -value) ""))
                                (async/put! (:event-bus opts) {:op :remove :name (:name @cell)}))
                  :value (:input cell)})
-          (render-result (:output cell)))))))
+          (let [{:keys [error value]} (:output cell)]
+            (dom/div #js {:className (str "output " (if error "failure" "success"))}
+              (if (and (map? value) (::ui/type value))
+                (let [refresh-cb #(async/put! (:event-bus opts)
+                                    {:op :refresh :name (:name @cell) :value %})]
+                  (case (::ui/type value)
+                    :slider (om/build ui/slider-view value {:opts {:refresh-cb refresh-cb}})))
+                (str "==> " (or error (pr-str value)))))))))))
 
 (defn text-cell [cell owner opts]
   (reify
@@ -183,6 +205,7 @@
       (go-loop []
         (let [ev (<! (om/get-state owner :event-bus))]
           (case (:op ev)
+            :refresh (om/transact! app-state [] #(refresh-cell % ev))
             :update (om/transact! app-state [] #(update-cell % ev))
             :remove (when (> (count (:cells @app-state)) 1)
                       (om/transact! app-state [] #(remove-cell % ev))))

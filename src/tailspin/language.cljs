@@ -1,11 +1,13 @@
 (ns tailspin.language
   "Implements a strictly limited subset of the Clojure language."
-  (:refer-clojure :exclude [eval]))
+  (:refer-clojure :exclude [eval])
+  (:require [tailspin.ui :as ui]))
 
 (def ^:dynamic *max-recur-depth* 256)
 
 (def builtins
-  {'+ +, '- -, '* *, '/ /, '< <, '<= <=, '> >, '>= >=, '= =, '== ==, 'aget aget, 'apply apply,
+  { ;; clojure.core pure functions
+   '+ +, '- -, '* *, '/ /, '< <, '<= <=, '> >, '>= >=, '= =, '== ==, 'aget aget, 'apply apply,
    'aset aset, 'assoc assoc, 'assoc-in assoc-in, 'comp comp, 'complement complement,
    'concat concat, 'conj conj, 'cons cons, 'constantly constantly, 'contains? contains?,
    'count count, 'cycle cycle, 'dec dec, 'disj disj, 'dissoc dissoc, 'distinct distinct,
@@ -25,7 +27,9 @@
    'sort sort, 'sort-by sort-by, 'split-at split-at, 'split-with split-with, 'str str, 'subs subs,
    'subvec subvec, 'symbol symbol, 'symbol? symbol?, 'take take, 'take-last take-last,
    'take-while take-while, 'update-in update-in, 'val val, 'vals vals, 'vector vector,
-   'vector? vector?, 'vec vec, 'zipmap zipmap})
+   'vector? vector?, 'vec vec, 'zipmap zipmap,
+    ;; Tailspin UI elements
+   'slider ui/slider})
 
 (declare eval)
 
