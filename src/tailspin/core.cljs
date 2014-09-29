@@ -62,6 +62,14 @@
       (try {:value (lang/eval (rdr/read-string (:input cell)) lookup)}
            (catch js/Error err {:error (.-message err)})))))
 
+(defn- updates [graph name get-cell]
+  (->> (map get-cell (dep/transitive-dependents graph name))
+       (sort-by :name (dep/topo-comparator graph))
+       (reduce (fn [updated cell]
+                 (assoc updated (:name cell)
+                        (recalc cell #(or (updated %) (get-cell %)))))
+               {name (get-cell name)})))
+
 ;; ---------------------------------------------------------------------
 ;; Transactionally update the entire sheet in response to user actions
 
@@ -70,36 +78,20 @@
    of a cell to refresh) and `:value` (the new value of the refreshed cell),
    updates the entire sheet to reflect the changes made."
   [sheet {:keys [name value]}]
-  (let [graph (:deps sheet)
-        get-cell (assoc-in (keyed-by :name (:cells sheet)) [name :output :value :value] value)
-        the-cell (get-cell name)
-        downstream (dep/transitive-dependents graph name)
-        updated (->> (map get-cell downstream)
-                     (sort-by :name (dep/topo-comparator graph))
-                     (reduce (fn [updated cell]
-                               (assoc updated (:name cell)
-                                      (recalc cell #(or (updated %) (get-cell %)))))
-                             {name the-cell}))]
+  (let [get-cell (assoc-in (keyed-by :name (:cells sheet)) [name :output :value :value] value)
+        updated (updates (:deps sheet) name get-cell)]
     (assoc sheet :cells (mapv #(or (updated (:name %)) %) (:cells sheet)))))
 
 (defn- remove-cell
   "Given a map of `sheet` data and a map containing the key `:name` (the name
    of a cell to remove), updates the entire sheet to reflect the changes made."
   [sheet {:keys [name]}]
-  (let [graph (:deps sheet)
-        get-cell (dissoc (keyed-by :name (:cells sheet)) name)
-        downstream (dep/transitive-dependents graph name)
-        updated (->> (map get-cell downstream)
-                     (sort-by :name (dep/topo-comparator graph))
-                     (reduce (fn [updated cell]
-                               (assoc updated (:name cell)
-                                      (recalc cell #(or (updated %) (get-cell %))))) {}))]
-    {:cells
-     (->> (:cells sheet)
-          (remove #(= (:name %) name))
-          (mapv #(or (updated (:name %)) %)))
-     :deps
-     (dep/remove-all graph name)}))
+  (let [get-cell (dissoc (keyed-by :name (:cells sheet)) name)
+        updated (updates (:deps sheet) name get-cell)]
+    {:cells (->> (:cells sheet)
+                 (remove #(= (:name %) name))
+                 (mapv #(or (updated (:name %)) %)))
+     :deps (dep/remove-all (:deps sheet) name)}))
 
 (defn- update-cell
   "Given a map of `sheet` data and a map containing keys `:name` (the name of a
@@ -116,24 +108,17 @@
         ;; check for circular dependencies to ensure nothing breaks
         downstream (dep/transitive-dependents graph name)
         circ-dep (first (set/intersection (conj downstream name) new-deps))
-        the-cell (if circ-dep
-                   (assoc (get-cell name) :output
-                          {:error (str "Circular dependency on cell '" circ-dep "'")})
-                   (recalc (get-cell name) get-cell))
+        get-cell (if circ-dep
+                   (assoc-in get-cell [name :output]
+                             {:error (str "Circular dependency on cell '" circ-dep "'")})
+                   (assoc get-cell name (recalc (get-cell name) get-cell)))
         ;; update downstream cells to reflect the changes we made upstream
-        updated (->> (map get-cell downstream)
-                     (sort-by :name (dep/topo-comparator graph))
-                     (reduce (fn [updated cell]
-                               (assoc updated (:name cell)
-                                      (recalc cell #(or (updated %) (get-cell %)))))
-                             {name the-cell}))]
-    {:cells
-     (mapv #(or (updated (:name %)) %) (:cells sheet))
-     :deps
-     (if circ-dep
-       (dep/remove-node graph name)
-       (reduce #(dep/remove-edge %1 name %2)
-               (reduce #(dep/depend %1 name %2) graph +deps) -deps))}))
+        updated (updates graph name get-cell)]
+    {:cells (mapv #(or (updated (:name %)) %) (:cells sheet))
+     :deps (if circ-dep
+             (dep/remove-node graph name)
+             (reduce #(dep/remove-edge %1 name %2)
+                     (reduce #(dep/depend %1 name %2) graph +deps) -deps))}))
 
 ;; ---------------------------------------------------------------------
 ;; Render cells to the DOM
