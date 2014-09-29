@@ -13,13 +13,17 @@
 (defn slider-view [data owner opts]
   (reify om/IRender
     (render [_]
-      (dom/input
-        #js {:min (:min data)
-             :max (:max data)
-             :onChange #((:refresh-cb opts) (.. % -target -valueAsNumber))
-             :step (:step data)
-             :type "range"
-             :value (:value data)}))))
+      (dom/div #js {:style #js {:margin-top "2px"}}
+        (dom/input
+          #js {:min (:min data)
+               :max (:max data)
+               :onChange #((:refresh-cb opts) (.. % -target -valueAsNumber))
+               :step (:step data)
+               :type "range"
+               :value (:value data)})
+        (dom/output
+          #js {:style #js {:position "relative" :left "10px" :top "-2px"}
+               :value (:value data)})))))
 
 (defn build [spec refresh-cb]
   (om/build (case (::type spec) :slider slider-view)
