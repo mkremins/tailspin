@@ -16,7 +16,7 @@
       (dom/input
         #js {:min (:min data)
              :max (:max data)
-             :onChange #((:refresh-cb opts) (js/parseFloat (.. % -target -value)))
+             :onChange #((:refresh-cb opts) (.. % -target -valueAsNumber))
              :step (:step data)
              :type "range"
              :value (:value data)}))))
