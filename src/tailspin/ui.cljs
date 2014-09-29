@@ -3,12 +3,7 @@
             [om.dom :as dom :include-macros true]))
 
 (defn spec? [value]
-  (and (map? value) (::type value)))
-
-(defn slider
-  [& {:keys [min max step init]
-      :or {min 0 max 1 step 0.01 init 0.5}}]
-  {::type :slider :min min :max max :step step :value init})
+  (and (map? value) (::component value)))
 
 (defn slider-view [data owner opts]
   (reify om/IRender
@@ -25,7 +20,10 @@
           #js {:style #js {:position "relative" :left "10px" :top "-2px"}
                :value (:value data)})))))
 
+(defn slider
+  [& {:keys [min max step init] :or {min 0 max 1 step 0.01 init 0.5}}]
+  {::component slider-view :min min :max max :step step :value init})
+
 (defn build [spec refresh-cb]
-  (om/build (case (::type spec) :slider slider-view)
-            spec
+  (om/build (::component spec) (dissoc spec ::component)
             {:opts {:refresh-cb refresh-cb}}))
