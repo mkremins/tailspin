@@ -70,55 +70,45 @@
                         (recalc cell #(or (updated %) (get-cell %)))))
                {name (get-cell name)})))
 
+(defn- with-updates [updates cells]
+  (mapv #(or (updates (:name %)) %) cells))
+
 ;; ---------------------------------------------------------------------
 ;; Transactionally update the entire sheet in response to user actions
 
 (defn- refresh-cell
-  "Given a map of `sheet` data and a map containing the key `:name` (the name
-   of a cell to refresh) and `:value` (the new value of the refreshed cell),
-   updates the entire sheet to reflect the changes made."
-  [sheet {:keys [name value]}]
-  (let [get-cell (assoc-in (keyed-by :name (:cells sheet)) [name :output :value :value] value)
-        updated (updates (:deps sheet) name get-cell)]
-    (assoc sheet :cells (mapv #(or (updated (:name %)) %) (:cells sheet)))))
+  "When the user changes a UI input's value, recalculate dependent cells."
+  [{:keys [deps cells]} {:keys [name value]}]
+  (let [get-cell (assoc-in (keyed-by :name cells) [name :output :value :value] value)]
+    {:cells (with-updates (updates deps name get-cell) cells) :deps deps}))
 
 (defn- remove-cell
-  "Given a map of `sheet` data and a map containing the key `:name` (the name
-   of a cell to remove), updates the entire sheet to reflect the changes made."
-  [sheet {:keys [name]}]
-  (let [get-cell (dissoc (keyed-by :name (:cells sheet)) name)
-        updated (updates (:deps sheet) name get-cell)]
-    {:cells (->> (:cells sheet)
-                 (remove #(= (:name %) name))
-                 (mapv #(or (updated (:name %)) %)))
-     :deps (dep/remove-all (:deps sheet) name)}))
+  "When the user deletes a cell, recalculate dependent cells."
+  [{:keys [deps cells]} {:keys [name]}]
+  (let [get-cell (dissoc (keyed-by :name cells) name)]
+    {:cells (->> (remove #(= (:name %) name) cells)
+                 (with-updates (updates deps name get-cell)))
+     :deps (dep/remove-all deps name)}))
 
 (defn- update-cell
-  "Given a map of `sheet` data and a map containing keys `:name` (the name of a
-   cell to update) and `:input` (the new input string for the updated cell),
-   updates the entire sheet to reflect the changes made."
-  [sheet {:keys [name input]}]
-  (let [graph (:deps sheet)
-        get-cell (assoc-in (keyed-by :name (:cells sheet)) [name :input] input)
-        ;; we'll use this info to calculate an updated dependency graph below
+  "When the user changes a cell's code, recalculate dependent cells."
+  [{:keys [deps cells]} {:keys [name input]}]
+  (let [get-cell (assoc-in (keyed-by :name cells) [name :input] input)
         new-deps (calculate-dependencies input)
-        old-deps (dep/immediate-dependencies graph name)
+        old-deps (dep/immediate-dependencies deps name)
         +deps (set/difference new-deps old-deps)
         -deps (set/difference old-deps new-deps)
-        ;; check for circular dependencies to ensure nothing breaks
-        downstream (dep/transitive-dependents graph name)
+        downstream (dep/transitive-dependents deps name)
         circ-dep (first (set/intersection (conj downstream name) new-deps))
         get-cell (if circ-dep
                    (assoc-in get-cell [name :output]
                              {:error (str "Circular dependency on cell '" circ-dep "'")})
-                   (assoc get-cell name (recalc (get-cell name) get-cell)))
-        ;; update downstream cells to reflect the changes we made upstream
-        updated (updates graph name get-cell)]
-    {:cells (mapv #(or (updated (:name %)) %) (:cells sheet))
+                   (assoc get-cell name (recalc (get-cell name) get-cell)))]
+    {:cells (with-updates (updates deps name get-cell) cells)
      :deps (if circ-dep
-             (dep/remove-node graph name)
+             (dep/remove-node deps name)
              (reduce #(dep/remove-edge %1 name %2)
-                     (reduce #(dep/depend %1 name %2) graph +deps) -deps))}))
+                     (reduce #(dep/depend %1 name %2) deps +deps) -deps))}))
 
 ;; ---------------------------------------------------------------------
 ;; Render cells to the DOM
