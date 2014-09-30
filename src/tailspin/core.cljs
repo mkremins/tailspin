@@ -103,7 +103,7 @@
         get-cell (if circ-dep
                    (assoc-in get-cell [name :output]
                              {:error (str "Circular dependency on cell '" circ-dep "'")})
-                   (assoc get-cell name (recalc (get-cell name) get-cell)))]
+                   (update-in get-cell [name] recalc get-cell))]
     {:cells (with-updates (updates deps name get-cell) cells)
      :deps (if circ-dep
              (dep/remove-node deps name)
