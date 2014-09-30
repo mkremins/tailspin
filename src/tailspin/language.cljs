@@ -35,6 +35,17 @@
 
 (defmulti eval-special (fn [form _] (first form)))
 
+(deftype Function [params body resolve])
+
+(defn- apply* [f args]
+  (if (instance? Function f)
+    (let [args (zipmap (.-params f) args)]
+      (eval (.-body f) #(if (contains? args %) (args %) ((.-resolve f) %))))
+    (apply f args)))
+
+(defmethod eval-special 'fn* [[_ params body] resolve]
+  (Function. params body resolve))
+
 (defmethod eval-special 'if [[_ test then else] resolve]
   (eval (if (eval test resolve) then else) resolve))
 
@@ -77,7 +88,7 @@
     (condp apply [form]
       seq? (if-let [eval-special* (get-method eval-special (first form))]
              (eval-special* form resolve)
-             (if (empty? form) () (apply (eval* (first form)) (map eval* (rest form)))))
+             (if (empty? form) () (apply* (eval* (first form)) (map eval* (rest form)))))
       vector? (mapv eval* form)
       set? (set (map eval* form))
       map? (into {} (map (fn [[k v]] [(eval* k) (eval* v)]) form))
