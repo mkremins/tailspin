@@ -6,7 +6,7 @@
   padding: 0;
 }
 
-textarea, input[type="text"] {
+textarea {
   border: none;
   outline: none;
   resize: none;
@@ -25,6 +25,8 @@ textarea, input[type="text"] {
 }
 
 .cell .name {
+  border: none;
+  outline: none;
   color: #777;
   display: inline-block;
   font-family: 'Lucida Grande', sans-serif;

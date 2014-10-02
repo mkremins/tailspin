@@ -24,6 +24,18 @@
   [& {:keys [min max step init] :or {min 0 max 1 step 0.01 init 0.5}}]
   {::component slider-view :min min :max max :step step :value init})
 
+(defn textfield-view [data owner opts]
+  (reify om/IRender
+    (render [_]
+      (dom/input
+        #js {:onChange #((:refresh-cb opts) (.. % -target -value))
+             :type "text"
+             :value (:value data)}))))
+
+(defn textfield
+  [& {:keys [init] :or {init ""}}]
+  {::component textfield-view :value init})
+
 (defn build [spec refresh-cb]
   (om/build (::component spec) (dissoc spec ::component)
             {:opts {:refresh-cb refresh-cb}}))
