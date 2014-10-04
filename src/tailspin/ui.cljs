@@ -25,7 +25,7 @@
 (defn slider-view [data owner opts]
   (reify om/IRender
     (render [_]
-      (dom/div #js {:style #js {:margin-top "2px"}}
+      (dom/div nil
         (dom/input
           #js {:min (:min data)
                :max (:max data)
@@ -34,7 +34,7 @@
                :type "range"
                :value (:value data)})
         (dom/output
-          #js {:style #js {:position "relative" :left "10px" :top "-2px"}
+          #js {:style #js {:position "relative" :left "10px"}
                :value (:value data)})))))
 
 (defn slider

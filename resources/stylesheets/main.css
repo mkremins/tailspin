@@ -83,7 +83,11 @@ textarea {
   font-weight: bold;
   padding-right: 10px;
   text-align: right;
-  vertical-align: top;
+}
+
+input[type="range"] {
+  position: relative;
+  top: 3px;
 }
 
 /* Text cells */
