@@ -54,8 +54,7 @@
             (if-let [dep (get-cell (name sym))]
               (if (contains? (:output dep) :error)
                 (throw (js/Error. (str "Cell '" sym "' contains an error")))
-                (let [value (:value (:output dep))]
-                  (if (ui/spec? value) (:value value) value)))
+                (:value (:output dep)))
               (or (lang/builtins sym)
                   (throw (js/Error. (str "Can't resolve symbol '" sym "'"))))))]
     (assoc cell :output
@@ -79,7 +78,7 @@
 (defn- refresh-cell
   "When the user changes a UI input's value, recalculate dependent cells."
   [{:keys [deps cells]} {:keys [name value]}]
-  (let [get-cell (assoc-in (keyed-by :name cells) [name :output :value :value] value)]
+  (let [get-cell (assoc-in (keyed-by :name cells) [name :output :value ::ui/value] value)]
     {:cells (with-updates (updates deps name get-cell) cells) :deps deps}))
 
 (defn- remove-cell
