@@ -5,6 +5,23 @@
 (defn spec? [value]
   (and (map? value) (::component value)))
 
+(defn build [spec refresh-cb]
+  (om/build (::component spec) (dissoc spec ::component)
+            {:opts {:refresh-cb refresh-cb}}))
+
+(defn panel-view [data owner opts]
+  (reify om/IRender
+    (render [_]
+      (apply dom/div #js {:className "panel"}
+        (for [[field-name spec] (:value data)]
+          (dom/div #js {:className "row"}
+            (dom/p #js {:className "label"} (name field-name))
+            (build spec #((:refresh-cb opts)
+                          (assoc-in (:value @data) [field-name :value] %)))))))))
+
+(defn panel [specs]
+  {::component panel-view :value (into (sorted-map) specs)})
+
 (defn slider-view [data owner opts]
   (reify om/IRender
     (render [_]
@@ -35,7 +52,3 @@
 (defn textfield
   [& {:keys [init] :or {init ""}}]
   {::component textfield-view :value init})
-
-(defn build [spec refresh-cb]
-  (om/build (::component spec) (dissoc spec ::component)
-            {:opts {:refresh-cb refresh-cb}}))

@@ -70,6 +70,22 @@ textarea {
 .success { color: green; }
 .failure { color: red;   }
 
+/* UI input */
+
+.panel { display: table; }
+.panel .row { display: table-row; }
+.panel .row > * { display: table-cell; }
+
+.panel .label {
+  color: black;
+  font-family: 'Lucida Grande', sans-serif;
+  font-size: 13px;
+  font-weight: bold;
+  padding-right: 10px;
+  text-align: right;
+  vertical-align: top;
+}
+
 /* Text cells */
 
 .text .content {

@@ -29,7 +29,7 @@
    'take-while take-while, 'update-in update-in, 'val val, 'vals vals, 'vector vector,
    'vector? vector?, 'vec vec, 'zipmap zipmap,
     ;; Tailspin UI elements
-   'slider ui/slider, 'textfield ui/textfield})
+   'panel ui/panel, 'slider ui/slider, 'textfield ui/textfield})
 
 (declare eval)
 
