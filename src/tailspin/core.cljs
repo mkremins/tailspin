@@ -12,24 +12,31 @@
 
 (enable-console-print!)
 
+(def ^:private last-id (atom -1))
+(defn- next-id [] (swap! last-id inc))
+
 (defn- make-code-cell []
-  {:type :code :name (name (gensym "cell")) :input "nil"})
+  (let [id (next-id)]
+    {:id id :type :code :name (str "cell" id) :input "nil"}))
 
 (defn- make-text-cell []
-  {:type :text :name (name (gensym "cell")) :text "Type here..."})
+  (let [id (next-id)]
+    {:id id :type :text :name (str "cell" id) :text "Type here..."}))
 
 (defn- keyed-by [keyfn coll]
   (reduce (fn [m item] (assoc m (keyfn item) item)) {} coll))
 
 (def app-state
-  (atom {:cells [{:type :text
+  (atom {:cells [{:id (next-id)
+                  :type :text
                   :name "intro"
                   :text (apply str
                           ["Welcome to Tailspin, an interactive notebook-style REPL. "
                            "Feel free to edit this text, or the code below. "
                            "You can also press SHIFT+ENTER to insert a new text cell "
                            "or CMD+ENTER to insert a new code cell."])}
-                 {:type :code
+                 {:id (next-id)
+                  :type :code
                   :name "testing"
                   :input "(str \"Hello, \" \"world!\")"}]
          :deps (dep/graph)}))
@@ -188,12 +195,11 @@
       (apply dom/div
         #js {:className "tailspin sheet"
              :onKeyDown (fn [ev]
-                          (cond (and (= (.-keyCode ev) 13) (.-shiftKey ev))
-                                (do (.preventDefault ev)
-                                    (om/transact! app-state :cells #(conj % (make-text-cell))))
-                                (and (= (.-keyCode ev) 13) (.-metaKey ev))
-                                (do (.preventDefault ev)
-                                    (om/transact! app-state :cells #(conj % (make-code-cell))))))}
+                          (when (= (.-keyCode ev) 13)
+                            (when-let [make-cell (cond (.-shiftKey ev) make-text-cell
+                                                       (.-metaKey ev) make-code-cell)]
+                              (.preventDefault ev)
+                              (om/transact! app-state :cells #(conj % (make-cell))))))}
         (for [cell (:cells app-state)]
           (case (:type cell)
             :code (om/build code-cell cell {:opts {:event-bus event-bus}})
