@@ -47,9 +47,9 @@
 (defn- calculate-dependencies [code]
   (letfn [(deps* [form]
             (cond (coll? form) (apply set/union (map deps* form))
-                  (symbol? form) #{(name form)}
+                  (symbol? form) #{(str form)}
                   :else #{}))]
-    (try (set/difference (deps* (rdr/read-string code)) (set (map name (keys lang/builtins))))
+    (try (set/difference (deps* (rdr/read-string code)) (set (map str (keys lang/builtins))))
          (catch js/Error _ #{}))))
 
 (defn- recalc
