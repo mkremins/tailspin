@@ -38,9 +38,8 @@
                :step (:step data)
                :type "range"
                :value (::value data)})
-        (dom/output
-          #js {:style #js {:position "relative" :left "10px"}
-               :value (::value data)})))))
+        (dom/span #js {:style #js {:position "relative" :left "10px"}}
+          (str (::value data)))))))
 
 (defn slider
   [& {:keys [min max step init] :or {min 0 max 1 step 0.01 init 0.5}}]
