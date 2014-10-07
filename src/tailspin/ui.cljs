@@ -12,6 +12,17 @@
 (defn deref* [spec]
   ((or (::deref spec) ::value) spec))
 
+(defn checkbox-view [data owner opts]
+  (reify om/IRender
+    (render [_]
+      (dom/input
+        #js {:checked (boolean (::value data))
+             :onChange #((:refresh-cb opts) (not (::value @data)))
+             :type "checkbox"}))))
+
+(defn checkbox [& {:keys [init] :or {init false}}]
+  {::build checkbox-view ::value init})
+
 (defn panel-view [data owner opts]
   (reify om/IRender
     (render [_]
@@ -53,6 +64,5 @@
              :type "text"
              :value (::value data)}))))
 
-(defn textfield
-  [& {:keys [init] :or {init ""}}]
+(defn textfield [& {:keys [init] :or {init ""}}]
   {::build textfield-view ::value init})
