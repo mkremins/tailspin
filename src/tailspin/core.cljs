@@ -95,7 +95,7 @@
   (let [get-cell (dissoc (keyed-by :name cells) name)]
     {:cells (->> (remove #(= (:name %) name) cells)
                  (with-updates (updates deps name get-cell)))
-     :deps (dep/remove-all deps name)}))
+     :deps (dep/remove-node deps name)}))
 
 (defn- update-cell
   "When the user changes a cell's code, recalculate dependent cells."
