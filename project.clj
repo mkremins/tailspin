@@ -1,4 +1,8 @@
 (defproject mkremins/tailspin "0.1.0-SNAPSHOT"
+  :license {:name "MIT License"
+            :url "http://opensource.org/licenses/MIT"
+            :distribution :repo}
+
   :dependencies
   [[org.clojure/clojure "1.6.0"]
    [org.clojure/clojurescript "0.0-2322"]

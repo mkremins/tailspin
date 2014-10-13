@@ -9,3 +9,7 @@ Direct manipulation is one of Tailspin's defining features. A code cell's value 
 ## Status
 
 Very WIP. Lots of conceptual stuff is still in flux and the current UI is more a proof of concept than anything else.
+
+## License
+
+[MIT License](http://opensource.org/licenses/MIT). Hack away.
