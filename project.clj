@@ -1,4 +1,6 @@
 (defproject mkremins/tailspin "0.1.0-SNAPSHOT"
+  :description "Interactive notebook-style REPL in the browser"
+  :url "https://github.com/mkremins/tailspin"
   :license {:name "MIT License"
             :url "http://opensource.org/licenses/MIT"
             :distribution :repo}
